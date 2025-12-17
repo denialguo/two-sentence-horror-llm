@@ -1,48 +1,54 @@
-Two-Sentence Horror Story Generator (Mistral 7B)
+# 🧟 Two-Sentence Horror Story Generator (Mistral 7B)
 
-This project fine-tunes Mistral 7B Instruct v0.3 to generate short-form horror microfiction using the top 10,000 most upvoted stories from r/TwoSentenceHorror.
-Training is performed using LoRA adapters and 4-bit NF4 quantization, enabling efficient fine-tuning on limited hardware.
+This project fine-tunes **Mistral 7B Instruct v0.3** to generate short-form horror microfiction using the **top 10,000 most upvoted stories** from **r/TwoSentenceHorror**.
 
-1. Data Source
+Training is performed using **LoRA adapters** and **4-bit NF4 quantization**, enabling efficient fine-tuning on limited hardware.
 
-The dataset is derived from a full Pushshift subreddit dump, allowing access to historical posts beyond Reddit API limits.
+---
 
-Input Dump: TwoSentenceHorror_submissions.zst
+## 1. Data Source
 
-Extraction Script: extract_top_10k.py
+The dataset is derived from a **full Pushshift subreddit dump**, allowing access to historical posts beyond Reddit API limits.
 
-Output Dataset: dataset_10k.txt
+**Input Dump**
+- `TwoSentenceHorror_submissions.zst`
+
+**Extraction Script**
+- `extract_top_10k.py`
+
+**Output Dataset**
+- `dataset_10k.txt`
+
+### Dataset Format
 
 Each line in the dataset contains:
+- The post **title**
+- The post **body**
+- Combined into a single, clean text sample
 
-The post title
+---
 
-The post body
-
-Combined into a single, clean text sample
-
-Extraction Process
+## 2. Extraction Process
 
 The extraction script automatically:
+- Filters out deleted or removed posts
+- Sorts all submissions by upvote score
+- Selects the **top 10,000** highest-rated stories
+- Normalizes punctuation and whitespace
 
-Filters out deleted or removed posts
+---
 
-Sorts all submissions by upvote score
+## 3. Training Notebook Configuration
 
-Selects the top 10,000 highest-rated stories
+Training is performed in the `llama-2sentencehorror-trainer.ipynb` notebook on **Kaggle**.
 
-Normalizes punctuation and whitespace
-
-2. Training Notebook Configuration
-
-Training is performed in the llama-2sentencehorror-trainer.ipynb notebook on Kaggle.
-
-Step 3: Load Dataset
+### Step 3: Load Dataset
 
 The dataset is loaded as a plain text file using Hugging Face Datasets.
 
-⚠️ Important: The path must point to the actual .txt file inside the Kaggle dataset directory.
+> ⚠️ **Important:** The path must point to the actual `.txt` file inside the Kaggle dataset directory.
 
+```python
 data_file_path = "/kaggle/input/10k-most-upvoted-two-sentence-horror-2022/dataset_10k.txt"
 
 print(f"Loading from: {data_file_path}")
@@ -52,67 +58,71 @@ raw_dataset = load_dataset(
     data_files={"train": data_file_path},
     split="train"
 )
+```
 
-Step 4: Instruction Formatting
+## Step 4: Instruction Formatting
 
 Each story is wrapped using Mistral’s instruction format so the model learns to associate the prompt with the desired output style.
 
-def format_instruction(example):
-    story = example["text"].strip()
-    return {
-        "text": f"<s>[INST] Write a creative and chilling two-sentence horror story. [/INST] {story}</s>"
-    }
+### 4. Training Hyperparameters
 
-formatted_dataset = raw_dataset.map(
-    format_instruction,
-    remove_columns=raw_dataset.column_names
-)
+Base Model
 
-3. Training Hyperparameters
+- mistralai/Mistral-7B-Instruct-v0.3
 
-Base Model: mistralai/Mistral-7B-Instruct-v0.3
+Quantization
 
-Quantization: 4-bit NF4 (bitsandbytes)
-
-Adapter Method: LoRA
+- 4-bit NF4 (bitsandbytes)
 
 LoRA Configuration
 
-Rank: 8
+- Rank: 8
 
-Alpha: 16
+- Alpha: 16
 
 Target Modules:
 
-q_proj
+ - q_proj
 
-k_proj
+  - k_proj
 
-v_proj
+ - v_proj
 
-o_proj
+ - o_proj
 
 Optimization
 
-Learning Rate: 2e-4
+- Learning Rate: 2e-4
 
-Batch Size: 2 per device
+- Batch Size: 2 per device
 
-Gradient Accumulation: 2
+- Gradient Accumulation: 2
 → Effective Batch Size: 4
 
-Epochs: 1 (sufficient for 10k high-quality samples)
+Epochs: 1
 
-Optimizer: Paged AdamW (8-bit)
+## 5. Inference Prompt
 
-4. Inference Prompt
-
-The model is trained to respond to the following fixed instruction prompt: 
+The model is trained to respond to the following fixed instruction:
+```
 <s>[INST] Write a creative and chilling two-sentence horror story. [/INST]
-During inference, the model typically produces:
+```
 
-A grounded setup sentence
+The model typically generates:
 
-Followed by a disturbing or ironic twist
+- A grounded setup sentence
 
-The EOS token (</s>) usually ends generation naturally.
+- A disturbing or ironic twist sentence
+
+Hardware Notes
+
+Training: Kaggle (2× NVIDIA T4 GPUs)
+
+Inference: Consumer GPUs supported via 4-bit quantization
+
+Minimum VRAM: ~6–8 GB
+
+License
+
+This project is released under the MIT License.
+Base model copyright remains with Mistral AI.

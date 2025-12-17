@@ -1,6 +1,6 @@
 # 🧟 Two-Sentence Horror Story Generator (Mistral 7B)
 
-This project fine-tunes **Mistral 7B Instruct v0.3** to generate short-form horror microfiction using the **top 10,000 most upvoted stories** from **r/TwoSentenceHorror**.
+This project fine-tunes **Mistral 7B Instruct v0.3** to generate short-form horror microfiction using **75,000 stories** as well as the **top 10,000 most upvoted stories** from **r/TwoSentenceHorror**.
 
 Training is performed using **LoRA adapters** and **4-bit NF4 quantization**, enabling efficient fine-tuning on limited hardware.
 
@@ -8,7 +8,7 @@ Training is performed using **LoRA adapters** and **4-bit NF4 quantization**, en
 
 ## 1. Data Source
 
-The dataset is derived from a **full Pushshift subreddit dump**, allowing access to historical posts beyond Reddit API limits.
+The most of dataset is derived from a **full Pushshift subreddit dump**, allowing access to historical posts beyond Reddit API limits. Then the model was additionally trained on the top 10,000 posts of all time on r/TwoSentenceHorror.
 
 **Input Dump**
 - `TwoSentenceHorror_submissions.zst`

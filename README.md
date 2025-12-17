@@ -41,6 +41,7 @@ The extraction script automatically:
 ## 3. Training Notebook Configuration
 
 Training is performed in the `llama-2sentencehorror-trainer.ipynb` notebook on **Kaggle**.
+> *this model originally used llama, but it kept crashing so we used mistral instead.*
 
 ### Step 3: Load Dataset
 

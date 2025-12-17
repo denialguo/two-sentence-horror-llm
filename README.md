@@ -1,209 +1,128 @@
----
-base_model: mistralai/Mistral-7B-Instruct-v0.3
-library_name: peft
-pipeline_tag: text-generation
-tags:
-- base_model:adapter:mistralai/Mistral-7B-Instruct-v0.3
-- lora
-- sft
-- transformers
-- trl
+# 🧟 Two-Sentence Horror Story Generator (Mistral 7B)
+
+This project fine-tunes **Mistral 7B Instruct v0.3** to generate short-form horror microfiction using **75,000 stories** as well as the **top 10,000 most upvoted stories** from **r/TwoSentenceHorror**.
+
+Training is performed using **LoRA adapters** and **4-bit NF4 quantization**, enabling efficient fine-tuning on limited hardware.
+
 ---
 
-# Model Card for Model ID
+## 1. Data Source
 
-<!-- Provide a quick summary of what the model is/does. -->
+The most of dataset is derived from a **full Pushshift subreddit dump**, allowing access to historical posts beyond Reddit API limits. Then the model was additionally trained on the top 10,000 posts of all time on r/TwoSentenceHorror.
 
+**Input Dump**
+- `TwoSentenceHorror_submissions.zst`
 
+**Extraction Script**
+- `extract_top_10k.py`
 
-## Model Details
+**Output Dataset**
+- `dataset_10k.txt`
 
-### Model Description
+### Dataset Format
 
-<!-- Provide a longer summary of what this model is. -->
+Each line in the dataset contains:
+- The post **title**
+- The post **body**
+- Combined into a single, clean text sample
 
+---
 
+## 2. Extraction Process
 
-- **Developed by:** [More Information Needed]
-- **Funded by [optional]:** [More Information Needed]
-- **Shared by [optional]:** [More Information Needed]
-- **Model type:** [More Information Needed]
-- **Language(s) (NLP):** [More Information Needed]
-- **License:** [More Information Needed]
-- **Finetuned from model [optional]:** [More Information Needed]
+The extraction script automatically:
+- Filters out deleted or removed posts
+- Sorts all submissions by upvote score
+- Selects the **top 10,000** highest-rated stories
+- Normalizes punctuation and whitespace
 
-### Model Sources [optional]
+---
 
-<!-- Provide the basic links for the model. -->
+## 3. Training Notebook Configuration
 
-- **Repository:** [More Information Needed]
-- **Paper [optional]:** [More Information Needed]
-- **Demo [optional]:** [More Information Needed]
+Training is performed in the `llama-2sentencehorror-trainer.ipynb` notebook on **Kaggle**.
 
-## Uses
+### Step 3: Load Dataset
 
-<!-- Address questions around how the model is intended to be used, including the foreseeable users of the model and those affected by the model. -->
+The dataset is loaded as a plain text file using Hugging Face Datasets.
 
-### Direct Use
+> ⚠️ **Important:** The path must point to the actual `.txt` file inside the Kaggle dataset directory.
 
-<!-- This section is for the model use without fine-tuning or plugging into a larger ecosystem/app. -->
+```python
+data_file_path = "/kaggle/input/10k-most-upvoted-two-sentence-horror-2022/dataset_10k.txt"
 
-[More Information Needed]
+print(f"Loading from: {data_file_path}")
 
-### Downstream Use [optional]
+raw_dataset = load_dataset(
+    "text",
+    data_files={"train": data_file_path},
+    split="train"
+)
+```
 
-<!-- This section is for the model use when fine-tuned for a task, or when plugged into a larger ecosystem/app -->
+## Step 4: Instruction Formatting
 
-[More Information Needed]
+Each story is wrapped using Mistral’s instruction format so the model learns to associate the prompt with the desired output style.
 
-### Out-of-Scope Use
+### 4. Training Hyperparameters
 
-<!-- This section addresses misuse, malicious use, and uses that the model will not work well for. -->
+Base Model
 
-[More Information Needed]
+- mistralai/Mistral-7B-Instruct-v0.3
 
-## Bias, Risks, and Limitations
+Quantization
 
-<!-- This section is meant to convey both technical and sociotechnical limitations. -->
+- 4-bit NF4 (bitsandbytes)
 
-[More Information Needed]
+LoRA Configuration
 
-### Recommendations
+- Rank: 8
 
-<!-- This section is meant to convey recommendations with respect to the bias, risk, and technical limitations. -->
+- Alpha: 16
 
-Users (both direct and downstream) should be made aware of the risks, biases and limitations of the model. More information needed for further recommendations.
+Target Modules:
 
-## How to Get Started with the Model
+ - q_proj
 
-Use the code below to get started with the model.
+  - k_proj
 
-[More Information Needed]
+ - v_proj
 
-## Training Details
+ - o_proj
 
-### Training Data
+Optimization
 
-<!-- This should link to a Dataset Card, perhaps with a short stub of information on what the training data is all about as well as documentation related to data pre-processing or additional filtering. -->
+- Learning Rate: 2e-4
 
-[More Information Needed]
+- Batch Size: 2 per device
 
-### Training Procedure
+- Gradient Accumulation: 2
+→ Effective Batch Size: 4
 
-<!-- This relates heavily to the Technical Specifications. Content here should link to that section when it is relevant to the training procedure. -->
+Epochs: 1
 
-#### Preprocessing [optional]
+## 5. Inference Prompt
 
-[More Information Needed]
+The model is trained to respond to the following fixed instruction:
+```
+<s>[INST] Write a creative and chilling two-sentence horror story. [/INST]
+```
 
+The model typically generates:
 
-#### Training Hyperparameters
+- A grounded setup sentence
 
-- **Training regime:** [More Information Needed] <!--fp32, fp16 mixed precision, bf16 mixed precision, bf16 non-mixed precision, fp16 non-mixed precision, fp8 mixed precision -->
+- A disturbing or ironic twist sentence
 
-#### Speeds, Sizes, Times [optional]
+Hardware Notes
 
-<!-- This section provides information about throughput, start/end time, checkpoint size if relevant, etc. -->
+Training: Kaggle (2× NVIDIA T4 GPUs)
 
-[More Information Needed]
+Inference: Consumer GPUs supported via 4-bit quantization
 
-## Evaluation
+Minimum VRAM: ~6–8 GB
 
-<!-- This section describes the evaluation protocols and provides the results. -->
+License
 
-### Testing Data, Factors & Metrics
-
-#### Testing Data
-
-<!-- This should link to a Dataset Card if possible. -->
-
-[More Information Needed]
-
-#### Factors
-
-<!-- These are the things the evaluation is disaggregating by, e.g., subpopulations or domains. -->
-
-[More Information Needed]
-
-#### Metrics
-
-<!-- These are the evaluation metrics being used, ideally with a description of why. -->
-
-[More Information Needed]
-
-### Results
-
-[More Information Needed]
-
-#### Summary
-
-
-
-## Model Examination [optional]
-
-<!-- Relevant interpretability work for the model goes here -->
-
-[More Information Needed]
-
-## Environmental Impact
-
-<!-- Total emissions (in grams of CO2eq) and additional considerations, such as electricity usage, go here. Edit the suggested text below accordingly -->
-
-Carbon emissions can be estimated using the [Machine Learning Impact calculator](https://mlco2.github.io/impact#compute) presented in [Lacoste et al. (2019)](https://arxiv.org/abs/1910.09700).
-
-- **Hardware Type:** [More Information Needed]
-- **Hours used:** [More Information Needed]
-- **Cloud Provider:** [More Information Needed]
-- **Compute Region:** [More Information Needed]
-- **Carbon Emitted:** [More Information Needed]
-
-## Technical Specifications [optional]
-
-### Model Architecture and Objective
-
-[More Information Needed]
-
-### Compute Infrastructure
-
-[More Information Needed]
-
-#### Hardware
-
-[More Information Needed]
-
-#### Software
-
-[More Information Needed]
-
-## Citation [optional]
-
-<!-- If there is a paper or blog post introducing the model, the APA and Bibtex information for that should go in this section. -->
-
-**BibTeX:**
-
-[More Information Needed]
-
-**APA:**
-
-[More Information Needed]
-
-## Glossary [optional]
-
-<!-- If relevant, include terms and calculations in this section that can help readers understand the model or model card. -->
-
-[More Information Needed]
-
-## More Information [optional]
-
-[More Information Needed]
-
-## Model Card Authors [optional]
-
-[More Information Needed]
-
-## Model Card Contact
-
-[More Information Needed]
-### Framework versions
-
-- PEFT 0.18.0
+This project is released under the MIT License.
+Base model copyright remains with Mistral AI.

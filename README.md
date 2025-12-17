@@ -1,198 +1,118 @@
 Two-Sentence Horror Story Generator (Mistral 7B)
 
-This project fine-tunes a Mistral 7B Instruct model on the top 10,000 most upvoted stories from r/TwoSentenceHorror.
+This project fine-tunes Mistral 7B Instruct v0.3 to generate short-form horror microfiction using the top 10,000 most upvoted stories from r/TwoSentenceHorror.
+Training is performed using LoRA adapters and 4-bit NF4 quantization, enabling efficient fine-tuning on limited hardware.
 
 1. Data Source
 
-The dataset is derived from a full Pushshift dump (TwoSentenceHorror_submissions.zst).
+The dataset is derived from a full Pushshift subreddit dump, allowing access to historical posts beyond Reddit API limits.
 
-Script: extract_top_10k.py
+Input Dump: TwoSentenceHorror_submissions.zst
 
-Output: dataset_10k.txt (One story per line, Title and Text combined).
+Extraction Script: extract_top_10k.py
+
+Output Dataset: dataset_10k.txt
+
+Each line in the dataset contains:
+
+The post title
+
+The post body
+
+Combined into a single, clean text sample
+
+Extraction Process
+
+The extraction script automatically:
+
+Filters out deleted or removed posts
+
+Sorts all submissions by upvote score
+
+Selects the top 10,000 highest-rated stories
+
+Normalizes punctuation and whitespace
 
 2. Training Notebook Configuration
 
-The training is done in the llama-2sentencehorror-trainer.ipynb notebook on Kaggle.
+Training is performed in the llama-2sentencehorror-trainer.ipynb notebook on Kaggle.
 
 Step 3: Load Dataset
 
-This loads the dataset text file.
-(Note: Ensure the path points to the specific .txt file inside the dataset folder)
+The dataset is loaded as a plain text file using Hugging Face Datasets.
 
-# Update this path to where you uploaded your data
-data_file_path = f"/kaggle/input/10k-most-upvoted-two-sentence-horror-2022"
+⚠️ Important: The path must point to the actual .txt file inside the Kaggle dataset directory.
+
+data_file_path = "/kaggle/input/10k-most-upvoted-two-sentence-horror-2022/dataset_10k.txt"
 
 print(f"Loading from: {data_file_path}")
-raw_dataset = load_dataset("text", data_files={"train": data_file_path}, split="train")
 
+raw_dataset = load_dataset(
+    "text",
+    data_files={"train": data_file_path},
+    split="train"
+)
 
-Step 4: Format Instruction
+Step 4: Instruction Formatting
 
-This applies the Mistral 7B instruction format to the dataset.
+Each story is wrapped using Mistral’s instruction format so the model learns to associate the prompt with the desired output style.
 
 def format_instruction(example):
-    story = example['text'].strip()
-    formatted = f"""<s>[INST] Write a creative and chilling two-sentence horror story. [/INST] {story}</s>"""
-    return {"text": formatted}
+    story = example["text"].strip()
+    return {
+        "text": f"<s>[INST] Write a creative and chilling two-sentence horror story. [/INST] {story}</s>"
+    }
 
-formatted_dataset = raw_dataset.map(format_instruction, remove_columns=raw_dataset.column_names)
-
+formatted_dataset = raw_dataset.map(
+    format_instruction,
+    remove_columns=raw_dataset.column_names
+)
 
 3. Training Hyperparameters
 
-Model: mistralai/Mistral-7B-Instruct-v0.3
+Base Model: mistralai/Mistral-7B-Instruct-v0.3
 
-LoRA Config: Rank 8, Alpha 16, Target Modules: [q_proj, k_proj, v_proj, o_proj]
+Quantization: 4-bit NF4 (bitsandbytes)
 
-Quantization: 4-bit NF4
+Adapter Method: LoRA
+
+LoRA Configuration
+
+Rank: 8
+
+Alpha: 16
+
+Target Modules:
+
+q_proj
+
+k_proj
+
+v_proj
+
+o_proj
+
+Optimization
 
 Learning Rate: 2e-4
 
-Batch Size: 2 per device (Effective Batch Size: 4)
+Batch Size: 2 per device
 
-Epochs: 1 (Sufficient for 10k items)
+Gradient Accumulation: 2
+→ Effective Batch Size: 4
 
-4. Inference
+Epochs: 1 (sufficient for 10k high-quality samples)
 
-The model is trained to respond to the standard prompt:
+Optimizer: Paged AdamW (8-bit)
 
+4. Inference Prompt
+
+The model is trained to respond to the following fixed instruction prompt: 
 <s>[INST] Write a creative and chilling two-sentence horror story. [/INST]
-4. Inference
-
-This repository provides a LoRA adapter, not a standalone model.
-To run inference, you must load the base Mistral 7B Instruct v0.3 model in 4-bit quantization and then apply the adapter using PEFT.
-
-Inference Setup
-
-Requirements
-
-Python 3.10+
-
-transformers
-
-peft
-
-bitsandbytes
-
-torch
-
-pip install transformers peft bitsandbytes accelerate
-
-Example Inference Code
-import torch
-from transformers import AutoTokenizer, AutoModelForCausalLM
-from peft import PeftModel
-
-base_model_id = "mistralai/Mistral-7B-Instruct-v0.3"
-adapter_path = "path/to/adapter"  # downloaded from Kaggle
-
-tokenizer = AutoTokenizer.from_pretrained(base_model_id)
-
-model = AutoModelForCausalLM.from_pretrained(
-    base_model_id,
-    load_in_4bit=True,
-    device_map="auto",
-    torch_dtype=torch.float16
-)
-
-model = PeftModel.from_pretrained(model, adapter_path)
-model.eval()
-
-prompt = "<s>[INST] Write a creative and chilling two-sentence horror story. [/INST]"
-
-inputs = tokenizer(prompt, return_tensors="pt").to(model.device)
-
-with torch.no_grad():
-    outputs = model.generate(
-        **inputs,
-        max_new_tokens=100,
-        temperature=0.75,
-        top_p=0.9,
-        do_sample=True
-    )
-
-print(tokenizer.decode(outputs[0], skip_special_tokens=True))
-
-Output Behavior
-
-The model is trained to generate two-sentence horror micro-fiction
-
-Typical structure:
+During inference, the model typically produces:
 
 A grounded setup sentence
 
-A disturbing or ironic twist sentence
+Followed by a disturbing or ironic twist
 
-The model usually stops naturally due to the </s> EOS token
-
-max_new_tokens=100 is used as a safety cap to prevent runaway generation
-
-Recommended Generation Settings
-
-Temperature: 0.7–0.8
-
-Top-p: 0.9
-
-Max tokens: 100
-
-These values balance creativity with coherence and sentence control.
-
-Hardware Requirements
-Training
-
-Performed on Kaggle Free Tier
-
-2× NVIDIA T4 GPUs
-
-LoRA + 4-bit quantization enabled training within limited VRAM
-
-Inference
-
-4-bit quantization allows consumer GPUs
-
-Minimum VRAM: ~6–8 GB
-
-CPU inference is possible but slow and not recommended
-
-Limitations
-
-The model is optimized specifically for two-sentence horror
-
-It may occasionally:
-
-Produce slightly more than two sentences
-
-Merge sentences with semicolons or commas
-
-Not suitable for:
-
-Long-form storytelling
-
-Instruction-following beyond the trained prompt
-
-Factual or non-fiction tasks
-
-Dataset & Attribution
-
-Training data sourced from top-voted posts on r/TwoSentenceHorror
-
-Data extracted from Pushshift subreddit dumps
-
-All content was filtered to remove deleted or removed posts
-
-This project is for research and educational purposes
-
-Future Work
-
-Add explicit sentence-count stopping logic
-
-Experiment with higher LoRA ranks
-
-Compare Mistral vs LLaMA-style instruction formatting
-
-Release a merged, inference-ready checkpoint
-
-License
-
-This project is released under the MIT License.
-Base model copyright remains with Mistral AI.
+The EOS token (</s>) usually ends generation naturally.

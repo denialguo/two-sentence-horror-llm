@@ -115,6 +115,8 @@ The model typically generates:
 
 - A disturbing or ironic twist sentence
 
+> *As a warning, the model is definitely not perfect. The issue I have with most LLM's is that they are unable to come up with creative ideas. My model can actually do this to some extent, but it struggles at doing that and continuing to use grammar correctly. *
+
 Hardware Notes
 
 Training: Kaggle (2× NVIDIA T4 GPUs)

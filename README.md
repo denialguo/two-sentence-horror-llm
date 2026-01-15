@@ -8,7 +8,7 @@ Training is performed using **LoRA adapters** and **4-bit NF4 quantization**, en
 
 ## 1. Data Source
 
-The most of dataset is derived from a **full Pushshift subreddit dump**, allowing access to historical posts beyond Reddit API limits. Then the model was additionally trained on the top 10,000 posts of all time on r/TwoSentenceHorror.
+Most of dataset is derived from a **full Pushshift subreddit dump**, allowing access to historical posts beyond Reddit API limits. Then the model was additionally trained on the top 10,000 posts of all time on r/TwoSentenceHorror.
 
 **Input Dump**
 - `TwoSentenceHorror_submissions.zst`
